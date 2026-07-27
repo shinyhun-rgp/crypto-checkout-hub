@@ -13,7 +13,6 @@ import {
   productsQuery,
   settingsQuery,
   shippingOptionsQuery,
-  slugify,
 } from "@/lib/store";
 
 export const Route = createFileRoute("/admin")({
@@ -382,7 +381,6 @@ function OrderDetails({ id }: { id: string }) {
         {order.shipping_label} {money(Number(order.shipping_price))} · Subtotal {money(Number(order.subtotal))} ·{" "}
         <span className="font-semibold">Total {money(Number(order.total))}</span>
       </p>
-      <p className="text-muted-foreground">Slug helper: {slugify(order.order_number)}</p>
     </div>
   );
 }
