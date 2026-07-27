@@ -1,81 +1,57 @@
-import type { CoinId } from "@/lib/crypto-payment";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type CartItem = {
+  productId: string;
   slug: string;
   name: string;
-  amount: number;
+  grams: number;
+  price: number;
   quantity: number;
 };
 
-export type CryptoPayment = {
-  coin: CoinId;
-  network: string;
+export type PlaceOrderInput = {
+  firstName: string;
+  lastName: string;
   address: string;
-  cryptoAmount: string;
-  txHash: string;
-  paidAt: string;
-};
-
-export type Order = {
-  id: string;
-  createdAt: string;
   email: string;
-  name: string;
-  method: "email" | "sms";
-  status: "Processing" | "Delivered";
-  items: CartItem[];
-  total: number;
-  payment: CryptoPayment;
+  notes: string;
+  shippingLabel: string;
+  shippingPrice: number;
+  paymentCode: string;
+  paymentAddress: string;
 };
 
-const CART_KEY = "giftshop.cart.v1";
-const ORDERS_KEY = "giftshop.orders.v1";
+export type PlacedOrder = {
+  orderNumber: string;
+  total: number;
+  paymentCode: string;
+  paymentAddress: string;
+  email: string;
+};
 
-function readJSON<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
+const CART_KEY = "shop.cart.grams.v1";
+
+function readCart(): CartItem[] {
+  if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
+    const raw = window.localStorage.getItem(CART_KEY);
+    return raw ? (JSON.parse(raw) as CartItem[]) : [];
   } catch {
-    return fallback;
+    return [];
   }
-}
-
-function writeJSON(key: string, value: unknown) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    /* storage unavailable */
-  }
-}
-
-export function loadOrders(): Order[] {
-  return readJSON<Order[]>(ORDERS_KEY, []);
-}
-
-export function findOrder(query: string): Order | undefined {
-  const q = query.trim().toLowerCase();
-  if (!q) return undefined;
-  return loadOrders().find((o) => o.id.toLowerCase() === q || o.email.toLowerCase() === q);
 }
 
 type CartContextValue = {
   items: CartItem[];
   count: number;
-  total: number;
+  subtotal: number;
   hydrated: boolean;
   add: (item: CartItem) => void;
-  setQuantity: (slug: string, amount: number, quantity: number) => void;
-  remove: (slug: string, amount: number) => void;
+  setQuantity: (productId: string, grams: number, quantity: number) => void;
+  remove: (productId: string, grams: number) => void;
   clear: () => void;
-  placeOrder: (details: {
-    name: string;
-    email: string;
-    method: "email" | "sms";
-    payment: CryptoPayment;
-  }) => Order;
+  placeOrder: (details: PlaceOrderInput) => Promise<PlacedOrder>;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -85,17 +61,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setItems(readJSON<CartItem[]>(CART_KEY, []));
+    setItems(readCart());
     setHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (hydrated) writeJSON(CART_KEY, items);
+    if (!hydrated || typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(CART_KEY, JSON.stringify(items));
+    } catch {
+      /* storage unavailable */
+    }
   }, [items, hydrated]);
 
   const add = useCallback((item: CartItem) => {
     setItems((prev) => {
-      const idx = prev.findIndex((i) => i.slug === item.slug && i.amount === item.amount);
+      const idx = prev.findIndex((i) => i.productId === item.productId && i.grams === item.grams);
       if (idx === -1) return [...prev, item];
       const next = [...prev];
       next[idx] = { ...next[idx], quantity: next[idx].quantity + item.quantity };
@@ -103,43 +84,78 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const setQuantity = useCallback((slug: string, amount: number, quantity: number) => {
+  const setQuantity = useCallback((productId: string, grams: number, quantity: number) => {
     setItems((prev) =>
       quantity <= 0
-        ? prev.filter((i) => !(i.slug === slug && i.amount === amount))
-        : prev.map((i) => (i.slug === slug && i.amount === amount ? { ...i, quantity } : i)),
+        ? prev.filter((i) => !(i.productId === productId && i.grams === grams))
+        : prev.map((i) => (i.productId === productId && i.grams === grams ? { ...i, quantity } : i)),
     );
   }, []);
 
-  const remove = useCallback((slug: string, amount: number) => {
-    setItems((prev) => prev.filter((i) => !(i.slug === slug && i.amount === amount)));
+  const remove = useCallback((productId: string, grams: number) => {
+    setItems((prev) => prev.filter((i) => !(i.productId === productId && i.grams === grams)));
   }, []);
 
   const clear = useCallback(() => setItems([]), []);
 
-  const total = useMemo(() => items.reduce((sum, i) => sum + i.amount * i.quantity, 0), [items]);
+  const subtotal = useMemo(() => items.reduce((sum, i) => sum + i.price * i.quantity, 0), [items]);
   const count = useMemo(() => items.reduce((sum, i) => sum + i.quantity, 0), [items]);
 
   const placeOrder = useCallback<CartContextValue["placeOrder"]>(
-    (details) => {
-      const order: Order = {
-        id: `GS-${Date.now().toString(36).toUpperCase().slice(-6)}`,
-        createdAt: new Date().toISOString(),
-        status: "Processing",
-        items,
-        total,
-        ...details,
-      };
-      writeJSON(ORDERS_KEY, [order, ...loadOrders()]);
+    async (details) => {
+      const orderNumber = `ORD-${Date.now().toString(36).toUpperCase().slice(-6)}`;
+      const total = subtotal + details.shippingPrice;
+
+      const { data: order, error } = await supabase
+        .from("orders")
+        .insert({
+          order_number: orderNumber,
+          first_name: details.firstName,
+          last_name: details.lastName,
+          address: details.address,
+          email: details.email,
+          notes: details.notes,
+          shipping_label: details.shippingLabel,
+          shipping_price: details.shippingPrice,
+          subtotal,
+          total,
+          payment_code: details.paymentCode,
+          payment_address: details.paymentAddress,
+          status: "Awaiting payment",
+        })
+        .select("id")
+        .single();
+
+      if (error) throw error;
+
+      const rows = items.map((i) => ({
+        order_id: (order as { id: string }).id,
+        product_name: i.name,
+        grams: i.grams,
+        unit_price: i.price,
+        quantity: i.quantity,
+        line_total: i.price * i.quantity,
+      }));
+      if (rows.length > 0) {
+        const { error: itemError } = await supabase.from("order_items").insert(rows);
+        if (itemError) throw itemError;
+      }
+
       setItems([]);
-      return order;
+      return {
+        orderNumber,
+        total,
+        paymentCode: details.paymentCode,
+        paymentAddress: details.paymentAddress,
+        email: details.email,
+      };
     },
-    [items, total],
+    [items, subtotal],
   );
 
   const value = useMemo(
-    () => ({ items, count, total, hydrated, add, setQuantity, remove, clear, placeOrder }),
-    [items, count, total, hydrated, add, setQuantity, remove, clear, placeOrder],
+    () => ({ items, count, subtotal, hydrated, add, setQuantity, remove, clear, placeOrder }),
+    [items, count, subtotal, hydrated, add, setQuantity, remove, clear, placeOrder],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
