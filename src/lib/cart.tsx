@@ -1,3 +1,4 @@
+import type { CoinId } from "@/lib/crypto-payment";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 export type CartItem = {
@@ -5,6 +6,15 @@ export type CartItem = {
   name: string;
   amount: number;
   quantity: number;
+};
+
+export type CryptoPayment = {
+  coin: CoinId;
+  network: string;
+  address: string;
+  cryptoAmount: string;
+  txHash: string;
+  paidAt: string;
 };
 
 export type Order = {
@@ -16,6 +26,7 @@ export type Order = {
   status: "Processing" | "Delivered";
   items: CartItem[];
   total: number;
+  payment: CryptoPayment;
 };
 
 const CART_KEY = "giftshop.cart.v1";
@@ -59,7 +70,12 @@ type CartContextValue = {
   setQuantity: (slug: string, amount: number, quantity: number) => void;
   remove: (slug: string, amount: number) => void;
   clear: () => void;
-  placeOrder: (details: { name: string; email: string; method: "email" | "sms" }) => Order;
+  placeOrder: (details: {
+    name: string;
+    email: string;
+    method: "email" | "sms";
+    payment: CryptoPayment;
+  }) => Order;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
