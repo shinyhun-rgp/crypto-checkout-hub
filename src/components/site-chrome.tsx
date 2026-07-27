@@ -1,9 +1,18 @@
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Mail, Search, ShoppingCart } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import leavesBg from "@/assets/leaves-bg.jpg";
-import { CATEGORIES, SETTINGS, money } from "@/lib/shop-data";
 import { useCart } from "@/lib/cart";
+import {
+  categoriesQuery,
+  money,
+  priceRange,
+  productGradient,
+  productsQuery,
+  settingsMap,
+  settingsQuery,
+} from "@/lib/store";
 
 const NAV = [
   { label: "HOME", to: "/" },
@@ -11,13 +20,21 @@ const NAV = [
   { label: "PAYMENT AND DELIVERY", to: "/payment-and-delivery" },
   { label: "DELIVERY METHOD", to: "/delivery-method" },
   { label: "DELIVERY TIME", to: "/delivery-time" },
+  { label: "SHIPPING & PACKAGING", to: "/shipping-and-packaging" },
   { label: "ABOUT US", to: "/about" },
   { label: "CONTACT US", to: "/contact" },
 ] as const;
 
+export function useSettings() {
+  const { data } = useQuery(settingsQuery);
+  return settingsMap(data);
+}
+
 export function SiteHeader() {
   const navigate = useNavigate();
   const cart = useCart();
+  const settings = useSettings();
+  const { data: categories } = useQuery(categoriesQuery);
   const [term, setTerm] = useState("");
   const [category, setCategory] = useState("all");
 
@@ -39,12 +56,12 @@ export function SiteHeader() {
           <div className="flex-1">
             <Link to="/" className="inline-block">
               <h1 className="text-5xl md:text-6xl leading-none text-primary" style={{ fontFamily: "var(--font-brand)" }}>
-                {SETTINGS.brandName}
+                {settings.store_name ?? ""}
               </h1>
             </Link>
-            <p className="mt-3 text-primary font-semibold max-w-sm">{SETTINGS.tagline}</p>
+            <p className="mt-3 text-primary font-semibold max-w-sm">{settings.tagline ?? ""}</p>
             <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
-              <Mail className="h-3 w-3" /> {SETTINGS.email}
+              <Mail className="h-3 w-3" /> {settings.contact_email ?? ""}
             </p>
           </div>
 
@@ -57,7 +74,7 @@ export function SiteHeader() {
                 className="px-3 text-sm bg-muted border-r border-border outline-none"
               >
                 <option value="all">All Categories</option>
-                {CATEGORIES.map((c) => (
+                {(categories ?? []).map((c) => (
                   <option key={c.slug} value={c.slug}>
                     {c.name}
                   </option>
@@ -66,8 +83,8 @@ export function SiteHeader() {
               <input
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
-                placeholder="Search gift cards..."
-                aria-label="Search gift cards"
+                placeholder={settings.search_placeholder ?? "Search…"}
+                aria-label="Search products"
                 className="flex-1 px-3 py-2 text-sm outline-none bg-card"
               />
               <button type="submit" className="px-4 bg-primary text-primary-foreground" aria-label="Search">
@@ -85,7 +102,7 @@ export function SiteHeader() {
                 </span>
               )}
             </span>
-            <span className="text-sm font-semibold">{money(cart.total)}</span>
+            <span className="text-sm font-semibold">{money(cart.subtotal, settings.currency_symbol ?? "$")}</span>
           </Link>
         </div>
       </div>
@@ -110,11 +127,113 @@ export function SiteHeader() {
   );
 }
 
+/** Right-hand column: search, grouped categories and a product list. */
+export function ShopSidebar() {
+  const navigate = useNavigate();
+  const settings = useSettings();
+  const symbol = settings.currency_symbol ?? "$";
+  const { data: categories } = useQuery(categoriesQuery);
+  const { data: products } = useQuery(productsQuery);
+  const [term, setTerm] = useState("");
+
+  const groups = new Map<string, typeof categories>();
+  for (const c of categories ?? []) {
+    if (!c.is_active) continue;
+    const list = groups.get(c.group_label) ?? [];
+    list.push(c);
+    groups.set(c.group_label, list);
+  }
+
+  return (
+    <aside className="w-full lg:w-72 shrink-0 space-y-8 text-sm">
+      <section>
+        <h3 className="text-xs font-semibold tracking-widest text-muted-foreground uppercase border-b border-border pb-2">
+          Search products
+        </h3>
+        <form
+          className="mt-3 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            navigate({ to: "/", search: { q: term || undefined } });
+          }}
+        >
+          <input
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            placeholder={settings.search_placeholder ?? "Search…"}
+            aria-label="Search products"
+            className="flex-1 min-w-0 px-3 py-1.5 border border-border rounded bg-card outline-none"
+          />
+          <button className="px-4 py-1.5 bg-primary text-primary-foreground rounded text-xs font-semibold">
+            Search
+          </button>
+        </form>
+      </section>
+
+      <section>
+        <h3 className="text-xs font-semibold tracking-widest text-muted-foreground uppercase border-b border-border pb-2">
+          Product categories
+        </h3>
+        <div className="mt-3 space-y-4">
+          {[...groups.entries()].map(([group, list]) => (
+            <div key={group}>
+              <p className="text-primary font-semibold">{group}</p>
+              <ul className="mt-1 space-y-1">
+                {(list ?? []).map((c) => (
+                  <li key={c.id}>
+                    <Link
+                      to="/"
+                      search={{ category: c.slug }}
+                      className="block pl-3 py-1 border-b border-border/60 text-foreground/75 hover:text-primary"
+                    >
+                      {c.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h3 className="text-xs font-semibold tracking-widest text-muted-foreground uppercase border-b border-border pb-2">
+          Products
+        </h3>
+        <ul className="mt-3 space-y-3">
+          {(products ?? [])
+            .filter((p) => p.is_active)
+            .slice(0, 5)
+            .map((p) => (
+              <li key={p.id}>
+                <Link to="/product/$slug" params={{ slug: p.slug }} className="flex gap-3 group">
+                  <span
+                    className="h-12 w-12 shrink-0 rounded"
+                    style={{
+                      background: p.image_url ? `center/cover url(${p.image_url})` : productGradient(p.name),
+                    }}
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-primary font-semibold text-[13px] leading-tight group-hover:underline">
+                      {p.name}
+                    </span>
+                    <span className="block text-xs text-muted-foreground mt-0.5">{priceRange(p, symbol)}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+        </ul>
+      </section>
+    </aside>
+  );
+}
+
 export function SiteFooter() {
+  const settings = useSettings();
   return (
     <footer className="border-t border-border bg-card/80 backdrop-blur mt-10">
       <div className="mx-auto max-w-7xl px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
-        <p>{SETTINGS.footer}</p>
+        <p>{settings.footer_text ?? ""}</p>
         <div className="flex gap-4">
           <Link to="/payment-and-delivery" className="text-primary hover:underline">
             Payment
@@ -122,8 +241,8 @@ export function SiteFooter() {
           <Link to="/order-tracking" className="text-primary hover:underline">
             Track order
           </Link>
-          <Link to="/contact" className="text-primary hover:underline">
-            Contact
+          <Link to="/admin" className="text-primary hover:underline">
+            Admin
           </Link>
         </div>
       </div>
@@ -147,6 +266,18 @@ export function PageBackground({ children }: { children: ReactNode }) {
   );
 }
 
+/** Page shell with the shop sidebar on the right, like the storefront layout. */
+export function PageWithSidebar({ children }: { children: ReactNode }) {
+  return (
+    <PageBackground>
+      <main className="mx-auto max-w-7xl px-6 py-8 flex flex-col lg:flex-row gap-10">
+        <div className="flex-1 min-w-0">{children}</div>
+        <ShopSidebar />
+      </main>
+    </PageBackground>
+  );
+}
+
 /** Simple content page shell used by the informational routes. */
 export function InfoPage({ title, lead, children }: { title: string; lead?: string; children: ReactNode }) {
   return (
@@ -166,5 +297,35 @@ export function InfoCard({ title, children }: { title: string; children: ReactNo
       <h3 className="font-semibold text-primary">{title}</h3>
       <div className="mt-2 text-sm text-foreground/75 space-y-2">{children}</div>
     </section>
+  );
+}
+
+/** Renders the lightweight markdown used by editable content pages. */
+export function RichText({ body }: { body: string }) {
+  const blocks = body.split(/\n{2,}/);
+  return (
+    <div className="space-y-4 text-sm text-foreground/80">
+      {blocks.map((block, i) => (
+        <p key={i} className="leading-relaxed">
+          {block.split("\n").map((line, j) => (
+            <span key={j} className="block">
+              {renderInline(line)}
+            </span>
+          ))}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function renderInline(line: string): ReactNode[] {
+  return line.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith("**") && part.endsWith("**") ? (
+      <strong key={i} className="text-foreground font-semibold">
+        {part.slice(2, -2)}
+      </strong>
+    ) : (
+      <span key={i}>{part}</span>
+    ),
   );
 }

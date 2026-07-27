@@ -1,36 +1,41 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { InfoCard, InfoPage } from "@/components/site-chrome";
+import { useQuery } from "@tanstack/react-query";
+import { PageBackground, RichText } from "@/components/site-chrome";
+import { contentPagesQuery } from "@/lib/store";
 
 export const Route = createFileRoute("/delivery-time")({
   head: () => ({
     meta: [
-      { title: "Delivery Time — GiftShop" },
-      { name: "description", content: "How fast GiftShop gift card codes arrive, typical processing windows and what to do if a code is late." },
-      { property: "og:title", content: "Delivery Time — GiftShop" },
-      { property: "og:description", content: "Most gift card codes arrive within minutes of payment." },
+      { title: "Delivery Time — worldwide shipping estimates" },
+      {
+        name: "description",
+        content: "Delivery estimates per region, tracking rules and the exact address format we need for parcels.",
+      },
+      { property: "og:title", content: "Delivery Time" },
+      { property: "og:description", content: "Regional delivery estimates and address formatting." },
     ],
   }),
-  component: () => (
-    <InfoPage title="Delivery time" lead="Most orders complete within minutes, not days.">
-      <InfoCard title="Typical timings">
-        <ul className="list-disc pl-5 space-y-1">
-          <li>Payment confirmation — under 1 minute</li>
-          <li>Code issued — 1 to 5 minutes</li>
-          <li>Email or SMS received — within 10 minutes</li>
-        </ul>
-      </InfoCard>
-      <InfoCard title="Higher value cards">
-        <p>
-          Orders over $500 go through an extra verification step, which can add up to 2 hours during busy periods.
-          Track progress at any time from the order tracking page.
-        </p>
-      </InfoCard>
-      <InfoCard title="Code hasn't arrived?">
-        <p>
-          Check your spam folder first, then look up the order number on the order tracking page. If the status shows
-          "Codes issued" but nothing arrived, contact support and we will resend it.
-        </p>
-      </InfoCard>
-    </InfoPage>
-  ),
+  component: () => <ContentPage slug="delivery-time" />,
 });
+
+export function ContentPage({ slug }: { slug: string }) {
+  const { data, isLoading } = useQuery(contentPagesQuery);
+  const page = (data ?? []).find((p) => p.slug === slug);
+
+  return (
+    <PageBackground>
+      <main className="mx-auto max-w-3xl px-6 py-12">
+        {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {!isLoading && !page && <p className="text-sm text-muted-foreground">This page has no content yet.</p>}
+        {page && (
+          <>
+            <h2 className="text-3xl font-bold">{page.title}</h2>
+            <div className="mt-6">
+              <RichText body={page.body} />
+            </div>
+          </>
+        )}
+      </main>
+    </PageBackground>
+  );
+}

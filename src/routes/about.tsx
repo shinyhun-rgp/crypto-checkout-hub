@@ -1,33 +1,43 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { InfoCard, InfoPage } from "@/components/site-chrome";
+import { useQuery } from "@tanstack/react-query";
+import { InfoCard, InfoPage, useSettings } from "@/components/site-chrome";
+import { categoriesQuery } from "@/lib/store";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "About GiftShop — Digital Gift Card Store" },
-      { name: "description", content: "GiftShop is a digital gift card store offering instant email delivery for Amazon, Netflix, Steam, Spotify and dozens more brands." },
-      { property: "og:title", content: "About GiftShop" },
-      { property: "og:description", content: "Who we are and how our digital gift card store works." },
+      { title: "About us — who we are and how we ship" },
+      { name: "description", content: "A small team shipping worldwide with discreet packaging and crypto-only payment." },
+      { property: "og:title", content: "About us" },
+      { property: "og:description", content: "Who we are and how the store works." },
     ],
   }),
-  component: () => (
-    <InfoPage title="About us" lead="A small team that makes buying gift cards fast and boring — in a good way.">
+  component: AboutPage,
+});
+
+function AboutPage() {
+  const settings = useSettings();
+  const { data: categories } = useQuery(categoriesQuery);
+  const groups = [...new Set((categories ?? []).map((c) => c.group_label))];
+
+  return (
+    <InfoPage title="About us" lead="Straightforward ordering, discreet packaging, worldwide reach.">
       <InfoCard title="What we do">
         <p>
-          GiftShop sells digital gift cards from major retail, entertainment and food brands. Every product is a code,
-          so there is nothing to ship and nothing to wait for.
+          {settings.store_name ?? "We"} ships worldwide from stock held in the United States and Western Europe. Every
+          product is priced and sold by weight in grams, so you order exactly what you need.
         </p>
       </InfoCard>
-      <InfoCard title="Why buy here">
+      <InfoCard title="Our catalogue">
         <ul className="list-disc pl-5 space-y-1">
-          <li>Over 20 brands in one catalogue with a single checkout</li>
-          <li>Flexible card values from $10 up to $1,000</li>
-          <li>Order tracking on every purchase</li>
+          {groups.map((g) => (
+            <li key={g}>{g}</li>
+          ))}
         </ul>
       </InfoCard>
       <InfoCard title="Support">
-        <p>Questions about an order go to hello@giftshop.example — replies usually land the same business day.</p>
+        <p>Questions about an order go to {settings.contact_email ?? "our support address"} — usually answered same day.</p>
       </InfoCard>
     </InfoPage>
-  ),
-});
+  );
+}
