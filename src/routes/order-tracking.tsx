@@ -157,6 +157,20 @@ function OrderPanel({ order }: { order: Order }) {
         <span>Total</span>
         <span>{money(order.total)}</span>
       </p>
+      {order.payment && (
+        <dl className="mt-3 border-t border-border pt-3 space-y-1 text-sm">
+          <div className="flex flex-wrap justify-between gap-3">
+            <dt className="text-muted-foreground">Paid in</dt>
+            <dd>
+              {order.payment.cryptoAmount} {order.payment.coin} ({order.payment.network})
+            </dd>
+          </div>
+          <div className="flex flex-wrap justify-between gap-3">
+            <dt className="text-muted-foreground">Transaction</dt>
+            <dd className="font-mono text-xs break-all">{order.payment.txHash}</dd>
+          </div>
+        </dl>
+      )}
       <p className="mt-3 text-xs text-muted-foreground">
         Delivery to {order.email} by {order.method === "email" ? "email" : "SMS"}.
       </p>
