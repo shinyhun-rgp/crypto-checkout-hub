@@ -15,13 +15,20 @@ export type ColumnDef = {
 
 type Row = Record<string, unknown>;
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Generic admin grid: the table name is dynamic, so the generated row types
+// cannot be applied here. Access goes through a loosely typed handle.
+const db = supabase as unknown as {
+  from: (table: string) => any;
+};
+
 export function useTableMutations(table: string, queryKeys: string[][]) {
   const qc = useQueryClient();
   const invalidate = () => queryKeys.forEach((key) => qc.invalidateQueries({ queryKey: key }));
 
   const update = useMutation({
     mutationFn: async ({ id, idKey, patch }: { id: string; idKey: string; patch: Row }) => {
-      const { error } = await supabase.from(table).update(patch).eq(idKey, id);
+      const { error } = await db.from(table).update(patch).eq(idKey, id);
       if (error) throw error;
     },
     onSuccess: invalidate,
@@ -29,7 +36,7 @@ export function useTableMutations(table: string, queryKeys: string[][]) {
 
   const insert = useMutation({
     mutationFn: async (row: Row) => {
-      const { error } = await supabase.from(table).insert(row);
+      const { error } = await db.from(table).insert(row);
       if (error) throw error;
     },
     onSuccess: invalidate,
@@ -37,7 +44,7 @@ export function useTableMutations(table: string, queryKeys: string[][]) {
 
   const remove = useMutation({
     mutationFn: async ({ id, idKey }: { id: string; idKey: string }) => {
-      const { error } = await supabase.from(table).delete().eq(idKey, id);
+      const { error } = await db.from(table).delete().eq(idKey, id);
       if (error) throw error;
     },
     onSuccess: invalidate,
