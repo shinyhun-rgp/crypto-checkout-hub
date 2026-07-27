@@ -1,22 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Mail } from "lucide-react";
-import { PageBackground } from "@/components/site-chrome";
-import { SETTINGS } from "@/lib/shop-data";
+import { PageBackground, useSettings } from "@/components/site-chrome";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
-      { title: "Contact GiftShop — Support and Order Help" },
-      { name: "description", content: "Contact the GiftShop team about an order, a missing code, refunds or bulk gift card purchases." },
-      { property: "og:title", content: "Contact GiftShop" },
-      { property: "og:description", content: "Send the GiftShop support team a message about your order." },
+      { title: "Contact us — order help and support" },
+      { name: "description", content: "Contact the team about an order, delivery question, refund or bulk enquiry." },
+      { property: "og:title", content: "Contact us" },
+      { property: "og:description", content: "Send the support team a message about your order." },
     ],
   }),
   component: ContactPage,
 });
 
 function ContactPage() {
+  const settings = useSettings();
   const [form, setForm] = useState({ name: "", email: "", orderId: "", message: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sent, setSent] = useState(false);
@@ -41,7 +41,7 @@ function ContactPage() {
       <main className="mx-auto max-w-3xl px-6 py-12">
         <h2 className="text-3xl font-bold text-primary">Contact us</h2>
         <p className="mt-3 text-foreground/70 flex items-center gap-2">
-          <Mail className="h-4 w-4" /> {SETTINGS.email}
+          <Mail className="h-4 w-4" /> {settings.contact_email ?? ""}
         </p>
 
         {sent && (
@@ -58,7 +58,7 @@ function ContactPage() {
             <input value={form.email} onChange={set("email")} type="email" className={inputClass} autoComplete="email" />
           </Field>
           <Field label="Order number (optional)">
-            <input value={form.orderId} onChange={set("orderId")} placeholder="GS-4F2A9C" className={inputClass} />
+            <input value={form.orderId} onChange={set("orderId")} placeholder="ORD-4F2A9C" className={inputClass} />
           </Field>
           <Field label="Message" error={errors.message}>
             <textarea value={form.message} onChange={set("message")} rows={5} className={inputClass} />
