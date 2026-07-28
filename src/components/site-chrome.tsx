@@ -8,7 +8,7 @@ import {
   categoriesQuery,
   money,
   priceRange,
-  productGradient,
+  productBackground,
   productsQuery,
   settingsMap,
   settingsQuery,
@@ -210,7 +210,7 @@ export function ShopSidebar() {
                   <span
                     className="h-12 w-12 shrink-0 rounded"
                     style={{
-                      background: p.image_url ? `center/cover url(${p.image_url})` : productGradient(p.name),
+                      background: productBackground(p.image_url, p.name),
                     }}
                   />
                   <span className="min-w-0">

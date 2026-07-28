@@ -4,7 +4,7 @@ import { ArrowLeft, Check } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PageWithSidebar, useSettings } from "@/components/site-chrome";
 import { useCart } from "@/lib/cart";
-import { categoriesQuery, gramsLabel, money, priceRange, productGradient, productsQuery } from "@/lib/store";
+import { categoriesQuery, gramsLabel, money, priceRange, productBackground, productsQuery } from "@/lib/store";
 
 export const Route = createFileRoute("/product/$slug")({
   head: ({ params }) => {
@@ -107,7 +107,7 @@ function ProductPage() {
         <div
           className="aspect-[4/3] rounded-lg shadow-lg"
           style={{
-            background: product.image_url ? `center/cover url(${product.image_url})` : productGradient(product.name),
+            background: productBackground(product.image_url, product.name),
           }}
         />
 
@@ -191,7 +191,7 @@ function ProductPage() {
               >
                 <div
                   className="aspect-[4/3] rounded mb-3"
-                  style={{ background: c.image_url ? `center/cover url(${c.image_url})` : productGradient(c.name) }}
+                  style={{ background: productBackground(c.image_url, c.name) }}
                 />
                 <div className="text-primary font-semibold text-sm leading-tight">{c.name}</div>
                 <div className="text-xs text-muted-foreground mt-1">{priceRange(c, symbol)}</div>
