@@ -3,16 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Mail, Search, ShoppingCart } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import leavesBg from "@/assets/leaves-bg.jpg";
+import { ProductImage } from "@/components/product-image";
 import { useCart } from "@/lib/cart";
-import {
-  categoriesQuery,
-  money,
-  priceRange,
-  productBackground,
-  productsQuery,
-  settingsMap,
-  settingsQuery,
-} from "@/lib/store";
+import { categoriesQuery, money, priceRange, productsQuery, settingsMap, settingsQuery } from "@/lib/store";
 
 const NAV = [
   { label: "HOME", to: "/" },
@@ -207,12 +200,7 @@ export function ShopSidebar() {
             .map((p) => (
               <li key={p.id}>
                 <Link to="/product/$slug" params={{ slug: p.slug }} className="flex gap-3 group">
-                  <span
-                    className="h-12 w-12 shrink-0 rounded"
-                    style={{
-                      background: productBackground(p.image_url, p.name),
-                    }}
-                  />
+                  <ProductImage imageUrl={p.image_url} name={p.name} className="h-12 w-12 shrink-0 rounded" />
                   <span className="min-w-0">
                     <span className="block text-primary font-semibold text-[13px] leading-tight group-hover:underline">
                       {p.name}
