@@ -2,9 +2,10 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Check } from "lucide-react";
 import { useMemo, useState } from "react";
+import { ProductImage } from "@/components/product-image";
 import { PageWithSidebar, useSettings } from "@/components/site-chrome";
 import { useCart } from "@/lib/cart";
-import { categoriesQuery, gramsLabel, money, priceRange, productBackground, productsQuery } from "@/lib/store";
+import { categoriesQuery, gramsLabel, money, priceRange, productsQuery } from "@/lib/store";
 
 export const Route = createFileRoute("/product/$slug")({
   head: ({ params }) => {
@@ -104,12 +105,7 @@ function ProductPage() {
       </nav>
 
       <div className="mt-6 grid gap-8 md:grid-cols-2">
-        <div
-          className="aspect-[4/3] rounded-lg shadow-lg"
-          style={{
-            background: productBackground(product.image_url, product.name),
-          }}
-        />
+        <ProductImage imageUrl={product.image_url} name={product.name} className="aspect-[4/3] rounded-lg shadow-lg" />
 
         <div>
           <h2 className="text-2xl font-bold text-primary">{product.name}</h2>
@@ -189,10 +185,7 @@ function ProductPage() {
                 params={{ slug: c.slug }}
                 className="bg-card/95 border border-border rounded p-3 text-center hover:shadow-lg transition"
               >
-                <div
-                  className="aspect-[4/3] rounded mb-3"
-                  style={{ background: productBackground(c.image_url, c.name) }}
-                />
+                <ProductImage imageUrl={c.image_url} name={c.name} className="aspect-[4/3] rounded mb-3" />
                 <div className="text-primary font-semibold text-sm leading-tight">{c.name}</div>
                 <div className="text-xs text-muted-foreground mt-1">{priceRange(c, symbol)}</div>
               </Link>
