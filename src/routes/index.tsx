@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { PageWithSidebar, useSettings } from "@/components/site-chrome";
-import { categoriesQuery, priceRange, productGradient, productsQuery } from "@/lib/store";
+import { categoriesQuery, priceRange, productBackground, productsQuery } from "@/lib/store";
 
 type ShopSearch = { q?: string; category?: string };
 
@@ -65,7 +65,7 @@ function ShopPage() {
           >
             <div
               className="aspect-[4/3] rounded mb-3"
-              style={{ background: p.image_url ? `center/cover url(${p.image_url})` : productGradient(p.name) }}
+              style={{ background: productBackground(p.image_url, p.name) }}
             />
             <h3 className="text-primary font-semibold text-sm leading-tight">{p.name}</h3>
             <p className="text-xs text-muted-foreground mt-1">{priceRange(p, symbol)}</p>
