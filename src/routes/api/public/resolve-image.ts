@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 const ALLOWED_PAGE_HOSTS = new Set(["ibb.co", "www.ibb.co", "imgbb.com", "www.imgbb.com"]);
+const ALLOWED_IMAGE_HOSTS = new Set(["i.ibb.co"]);
 const DIRECT_IMAGE_EXTENSIONS = /\.(avif|gif|jpe?g|png|svg|webp)(?:$|[?#])/i;
 
 export const Route = createFileRoute("/api/public/resolve-image")({
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/api/public/resolve-image")({
         }
 
         if (DIRECT_IMAGE_EXTENSIONS.test(target.href)) {
-          return redirectTo(target.href);
+          return proxyImage(target.href);
         }
 
         const response = await fetch(target.href, {
@@ -32,7 +33,7 @@ export const Route = createFileRoute("/api/public/resolve-image")({
 
         const contentType = response.headers.get("content-type") ?? "";
         if (contentType.toLowerCase().startsWith("image/")) {
-          return redirectTo(target.href);
+          return imageResponse(response, contentType);
         }
 
         const html = await response.text();
@@ -42,7 +43,7 @@ export const Route = createFileRoute("/api/public/resolve-image")({
           return new Response("No direct image found", { status: 404 });
         }
 
-        return redirectTo(resolved);
+        return proxyImage(resolved);
       },
     },
   },
@@ -54,11 +55,54 @@ function parseAllowedTarget(raw: string | null): URL | null {
   try {
     const target = new URL(raw.trim());
     if (target.protocol !== "https:" && target.protocol !== "http:") return null;
-    if (!ALLOWED_PAGE_HOSTS.has(target.hostname.toLowerCase())) return null;
+    const hostname = target.hostname.toLowerCase();
+    if (!ALLOWED_PAGE_HOSTS.has(hostname) && !ALLOWED_IMAGE_HOSTS.has(hostname)) return null;
     return target;
   } catch {
     return null;
   }
+}
+
+async function proxyImage(imageUrl: string): Promise<Response> {
+  let target: URL;
+  try {
+    target = new URL(imageUrl);
+  } catch {
+    return new Response("Invalid image URL", { status: 400 });
+  }
+
+  if (target.protocol !== "https:" && target.protocol !== "http:") {
+    return new Response("Invalid image URL", { status: 400 });
+  }
+
+  const hostname = target.hostname.toLowerCase();
+  if (!ALLOWED_IMAGE_HOSTS.has(hostname) && !ALLOWED_PAGE_HOSTS.has(hostname)) {
+    return new Response("Unsupported image host", { status: 400 });
+  }
+
+  const response = await fetch(target.href, {
+    headers: {
+      accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+      "user-agent": "Mozilla/5.0 (compatible; image-resolver/1.0)",
+    },
+  });
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().startsWith("image/")) {
+    return new Response("Resolved URL is not an image", { status: 502 });
+  }
+
+  return imageResponse(response, contentType);
+}
+
+function imageResponse(response: Response, contentType: string): Response {
+  return new Response(response.body, {
+    status: 200,
+    headers: {
+      "content-type": contentType,
+      "cache-control": "public, max-age=86400, stale-while-revalidate=604800",
+    },
+  });
 }
 
 function extractImageUrl(html: string, baseUrl: string): string | null {
@@ -93,14 +137,4 @@ function decodeHtmlAttribute(value: string): string {
     .replaceAll("&#47;", "/")
     .replaceAll("&quot;", '"')
     .replaceAll("&#39;", "'");
-}
-
-function redirectTo(location: string): Response {
-  return new Response(null, {
-    status: 302,
-    headers: {
-      location,
-      "cache-control": "public, max-age=86400, stale-while-revalidate=604800",
-    },
-  });
 }
