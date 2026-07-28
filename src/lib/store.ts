@@ -204,3 +204,15 @@ export function productGradient(seed: string): string {
   const h2 = (h1 + 40 + (hash % 80)) % 360;
   return `linear-gradient(135deg, hsl(${h1} 55% 55%), hsl(${h2} 60% 40%))`;
 }
+
+/**
+ * Background for a product tile: the image when a usable URL is set,
+ * otherwise the deterministic gradient. Handles blank/whitespace values and
+ * quotes the URL so paths with spaces or parentheses still resolve.
+ */
+export function productBackground(imageUrl: string | null | undefined, seed: string): string {
+  const url = (imageUrl ?? "").trim();
+  if (!url) return productGradient(seed);
+  const safe = url.replace(/["\\]/g, encodeURIComponent);
+  return `center/cover no-repeat url("${safe}"), ${productGradient(seed)}`;
+}
